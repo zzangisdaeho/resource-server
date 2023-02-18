@@ -11,11 +11,17 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
-@Configuration
+//@Configuration
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.authorizeRequests().mvcMatchers("/error").permitAll().anyRequest().authenticated();
+        http.authorizeRequests().mvcMatchers("/error").permitAll().anyRequest().authenticated()
+                .and()
+                .oauth2ResourceServer()
+                .opaqueToken()
+                .introspectionUri("http://localhost:8080/oauth/check_token")
+                .introspectionClientCredentials("client", "secret");
+        ;
     }
 }
