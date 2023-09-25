@@ -1,20 +1,16 @@
 package co.coinvestor.resourceserver.config;
 
-import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.core.DefaultOAuth2AuthenticatedPrincipal;
-import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.server.resource.introspection.NimbusOpaqueTokenIntrospector;
-import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
@@ -25,20 +21,22 @@ import javax.servlet.http.HttpServletRequest;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @Configuration
 public class Oauth2ResourceServerConfig {
 
+    /**
+     * resource server config
+     * @param http
+     * @return
+     * @throws Exception
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeRequests()
-                .antMatchers("/hello").permitAll()  // /hello 경로에 대한 모든 요청을 허용합니다.
+                .mvcMatchers("/hello").permitAll()  // /hello 경로에 대한 모든 요청을 허용합니다.
                 .anyRequest().authenticated() // 그 외의 모든 요청은 인증이 필요합니다.
                 .and()
                 .oauth2ResourceServer().jwt().decoder(jwtDecoder());
@@ -52,7 +50,41 @@ public class Oauth2ResourceServerConfig {
                 .withPublicKey(getPublicKey())
                 .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .build();
+
         return jwtDecoder;
+    }
+
+    /**
+     * jwt parser
+     * @return
+     */
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        return new JwtAuthenticationConverter() {
+            @Override
+            protected Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+                List<String> authorities = jwt.getClaimAsStringList("authorities");
+                List<String> scopes = jwt.getClaimAsStringList("scope");
+
+                List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+
+                // authorities에서 권한 추출
+                if (authorities != null) {
+                    grantedAuthorities.addAll(authorities.stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .toList());
+                }
+
+                // scope에서 권한 추출
+                if (scopes != null) {
+                    grantedAuthorities.addAll(scopes.stream()
+                            .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
+                            .toList());
+                }
+
+                return grantedAuthorities;
+            }
+        };
     }
 
     /**
@@ -85,7 +117,7 @@ public class Oauth2ResourceServerConfig {
     }
 
     /**
-     * Bearer Token의 위치를 특정해서 가져오는 설정
+     * Bearer Token bringer
      */
     @Bean
     public BearerTokenResolver customBearerTokenResolver() {
@@ -113,6 +145,5 @@ public class Oauth2ResourceServerConfig {
             }
         };
     }
-
 
 }
