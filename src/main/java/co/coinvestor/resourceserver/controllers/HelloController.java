@@ -26,7 +26,7 @@ public class HelloController {
     }
 
     @GetMapping("/hello2")
-    @PreAuthorize("authentication.principal.attributes['authorities'].contains('ADMIN')")
+    @PreAuthorize("authentication.principal.claims['authorities'].contains('ADMIN')")
     public String hello2(Authentication au) {
         SecurityContext context = SecurityContextHolder.getContext();
         Authentication authentication = context.getAuthentication();
@@ -46,8 +46,18 @@ public class HelloController {
     }
 
     @GetMapping("/hello4")
-//    @PreAuthorize("principal.attributes['authorities'].contains('ADMIN')")
+    @PreAuthorize("principal.claims['authorities'].contains('ADMIN')")
     public String hello4(Authentication au) {
+        SecurityContext context = SecurityContextHolder.getContext();
+        Authentication authentication = context.getAuthentication();
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+        System.out.println("oAuth2User = " + au);
+        return "Hello!";
+    }
+
+    @GetMapping("/hello5")
+    @PreAuthorize("principal.claims['scope'].contains('SPOT')")
+    public String hello5(Authentication au) {
         SecurityContext context = SecurityContextHolder.getContext();
         Authentication authentication = context.getAuthentication();
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();

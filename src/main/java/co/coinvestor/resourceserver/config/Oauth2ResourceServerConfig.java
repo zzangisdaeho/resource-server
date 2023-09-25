@@ -2,6 +2,9 @@ package co.coinvestor.resourceserver.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -18,6 +21,8 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
@@ -94,8 +99,19 @@ public class Oauth2ResourceServerConfig {
     private RSAPublicKey getPublicKey() {
         try {
             String publicKeyEndpoint = "http://localhost/oauth/token_key";
+            String clientId = "resourceserver";
+            String clientSecret = "resourceserversecret";
             RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<?> responseEntity = restTemplate.getForEntity(publicKeyEndpoint, Map.class);
+
+            // Basic Auth headers를 설정하기 위해 HttpHeaders 생성
+            HttpHeaders headers = new HttpHeaders();
+            String auth = clientId + ":" + clientSecret;
+            byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.US_ASCII));
+            String authHeader = "Basic " + new String(encodedAuth);
+            headers.set(HttpHeaders.AUTHORIZATION, authHeader);
+            HttpEntity<String> entity = new HttpEntity<>(null, headers);
+
+            ResponseEntity<Map> responseEntity = restTemplate.exchange(publicKeyEndpoint, HttpMethod.GET, entity, Map.class);
             Map<String, String> response = (Map<String, String>) responseEntity.getBody();
             String publicKeyValue = extractPubKey(response.get("value"));
 
