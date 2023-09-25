@@ -46,7 +46,7 @@ public class HelloController {
     }
 
     @GetMapping("/hello4")
-    @PreAuthorize("principal.attributes['authorities'].contains('ADMIN')")
+//    @PreAuthorize("principal.attributes['authorities'].contains('ADMIN')")
     public String hello4(Authentication au) {
         SecurityContext context = SecurityContextHolder.getContext();
         Authentication authentication = context.getAuthentication();
