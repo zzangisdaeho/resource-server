@@ -107,22 +107,7 @@ public class Oauth2ResourceServerConfig {
      */
     private RSAPublicKey getPublicKey() {
         try {
-            String publicKeyEndpoint = "http://localhost/oauth/token_key";
-            String clientId = "resourceserver";
-            String clientSecret = "resourceserversecret";
-            RestTemplate restTemplate = new RestTemplate();
-
-            // Basic Auth headers를 설정하기 위해 HttpHeaders 생성
-            HttpHeaders headers = new HttpHeaders();
-            String auth = clientId + ":" + clientSecret;
-            byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.US_ASCII));
-            String authHeader = "Basic " + new String(encodedAuth);
-            headers.set(HttpHeaders.AUTHORIZATION, authHeader);
-            HttpEntity<String> entity = new HttpEntity<>(null, headers);
-
-            ResponseEntity<Map> responseEntity = restTemplate.exchange(publicKeyEndpoint, HttpMethod.GET, entity, Map.class);
-            Map<String, String> response = (Map<String, String>) responseEntity.getBody();
-            String publicKeyValue = extractPubKey(response.get("value"));
+            String publicKeyValue = getPublicKeyValue();
 
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyValue));
@@ -130,6 +115,26 @@ public class Oauth2ResourceServerConfig {
         } catch (Exception ex) {
             throw new RuntimeException("키를 불러올 수 없습니다.", ex);
         }
+    }
+
+    private String getPublicKeyValue() {
+        String publicKeyEndpoint = "http://localhost/oauth/token_key";
+        String clientId = "resourceserver";
+        String clientSecret = "resourceserversecret";
+        RestTemplate restTemplate = new RestTemplate();
+
+        // Basic Auth headers를 설정하기 위해 HttpHeaders 생성
+        HttpHeaders headers = new HttpHeaders();
+        String auth = clientId + ":" + clientSecret;
+        byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.US_ASCII));
+        String authHeader = "Basic " + new String(encodedAuth);
+        headers.set(HttpHeaders.AUTHORIZATION, authHeader);
+        HttpEntity<String> entity = new HttpEntity<>(null, headers);
+
+        ResponseEntity<Map> responseEntity = restTemplate.exchange(publicKeyEndpoint, HttpMethod.GET, entity, Map.class);
+        Map<String, String> response = (Map<String, String>) responseEntity.getBody();
+        assert response != null;
+        return extractPubKey(response.get("value"));
     }
 
     private String extractPubKey(String publicKeyValue) {
