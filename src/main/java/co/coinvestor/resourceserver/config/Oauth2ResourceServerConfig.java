@@ -1,7 +1,9 @@
 package co.coinvestor.resourceserver.config;
 
+import jakarta.servlet.http.Cookie;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,9 +21,6 @@ import org.springframework.security.oauth2.server.resource.web.DefaultBearerToke
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.client.RestTemplate;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
@@ -33,6 +32,7 @@ public class Oauth2ResourceServerConfig {
 
     /**
      * resource server config
+     *
      * @param http
      * @return
      * @throws Exception
@@ -40,60 +40,69 @@ public class Oauth2ResourceServerConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeRequests()
-                .mvcMatchers("/hello").permitAll()  // /hello 경로에 대한 모든 요청을 허용합니다.
-                .anyRequest().authenticated() // 그 외의 모든 요청은 인증이 필요합니다.
-                .and()
-                .oauth2ResourceServer().jwt().decoder(jwtDecoder());
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/hello").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(
+                        httpSecurityOAuth2ResourceServerConfigurer -> httpSecurityOAuth2ResourceServerConfigurer.jwt(
+                                jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())
+                        )
+                );
 
         return http.build();
     }
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder
+
+        return NimbusJwtDecoder
                 .withPublicKey(getPublicKey())
                 .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .build();
-
-        return jwtDecoder;
     }
+
 
     /**
      * jwt parser
+     *
      * @return
      */
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
-        return new JwtAuthenticationConverter() {
-            @Override
-            protected Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
-                List<String> authorities = jwt.getClaimAsStringList("authorities");
-                List<String> scopes = jwt.getClaimAsStringList("scope");
 
-                List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+        Converter<Jwt, Collection<GrantedAuthority>> converter = jwt -> {
+            List<String> authorities = jwt.getClaimAsStringList("authorities");
+            List<String> scopes = jwt.getClaimAsStringList("scope");
 
-                // authorities에서 권한 추출
-                if (authorities != null) {
-                    grantedAuthorities.addAll(authorities.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .toList());
-                }
+            List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
 
-                // scope에서 권한 추출
-                if (scopes != null) {
-                    grantedAuthorities.addAll(scopes.stream()
-                            .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
-                            .toList());
-                }
-
-                return grantedAuthorities;
+            // Extract authorities from the 'authorities' claim
+            if (authorities != null) {
+                grantedAuthorities.addAll(authorities.stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .toList());
             }
+
+            // Extract authorities from the 'scope' claim
+            if (scopes != null) {
+                grantedAuthorities.addAll(scopes.stream()
+                        .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
+                        .toList());
+            }
+
+            return grantedAuthorities;
         };
+
+        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(converter);
+        return jwtAuthenticationConverter;
+
     }
 
     /**
      * publicKey를 가져오는 설정
+     *
      * @return
      */
     private RSAPublicKey getPublicKey() {
@@ -137,28 +146,26 @@ public class Oauth2ResourceServerConfig {
      */
     @Bean
     public BearerTokenResolver customBearerTokenResolver() {
-        return new BearerTokenResolver() {
-            private DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
 
-            @Override
-            public String resolve(HttpServletRequest request) {
-                String bearerToken = defaultResolver.resolve(request);
-                if (bearerToken != null) {
-                    return bearerToken;
-                }
+        return request -> {
+            final DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
 
-                // Cookie에서 토큰을 찾아보는 로직 추가
-                Cookie[] cookies = request.getCookies();
-                if (cookies != null) {
-                    for (Cookie cookie : cookies) {
-                        if ("TOKEN".equals(cookie.getName())) {
-                            return cookie.getValue();
-                        }
+            String bearerToken = defaultResolver.resolve(request);
+            if (bearerToken != null) {
+                return bearerToken;
+            }
+
+            // Cookie에서 토큰을 찾아보는 로직 추가
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if ("TOKEN".equals(cookie.getName())) {
+                        return cookie.getValue();
                     }
                 }
-
-                return null;
             }
+
+            return null;
         };
     }
 
