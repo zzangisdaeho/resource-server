@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
@@ -40,6 +41,8 @@ public class Oauth2ResourceServerConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(httpSecurityCsrfConfigurer -> httpSecurityCsrfConfigurer.disable())
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/hello").permitAll()
                         .anyRequest().authenticated()
@@ -118,7 +121,7 @@ public class Oauth2ResourceServerConfig {
     }
 
     private String getPublicKeyValue() {
-        String publicKeyEndpoint = "http://localhost/oauth/token_key";
+        String publicKeyEndpoint = "http://localhost/oauth/oauth/token_key";
         String clientId = "resourceserver";
         String clientSecret = "resourceserversecret";
         RestTemplate restTemplate = new RestTemplate();

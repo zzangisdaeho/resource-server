@@ -8,6 +8,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Collection;
@@ -18,6 +19,16 @@ public class HelloController {
     @GetMapping("/hello")
 //    @PreAuthorize("hasAuthority('ADMIN')")
     public String hello(Authentication au) {
+        SecurityContext context = SecurityContextHolder.getContext();
+        Authentication authentication = context.getAuthentication();
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+        System.out.println("oAuth2User = " + au);
+        return "Hello!";
+    }
+
+    @PostMapping("/hello")
+//    @PreAuthorize("hasAuthority('ADMIN')")
+    public String hello100(Authentication au) {
         SecurityContext context = SecurityContextHolder.getContext();
         Authentication authentication = context.getAuthentication();
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
